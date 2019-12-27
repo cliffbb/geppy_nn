@@ -1,8 +1,8 @@
-from setuptools import  setup
+from setuptools import  setup, find_packages
 
 setup(
         name='geppy_nn',
         version='0.1dev',
-        packages=['geppy_nn'],
+        packages=find_packages(),
         install_requires=['deap', 'geppy']
 )
