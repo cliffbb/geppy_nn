@@ -88,8 +88,8 @@ class GepNet(nn.Module):
         return nn.Sequential(*blocks)
 
     def head_layer(self):
-        cin = self.channels * 2
-        return nn.Sequential(AdaptiveConcatPool2d(1), #nn.AdaptiveAvgPool2d(1),
+        cin = self.channels #* 2
+        return nn.Sequential(nn.AdaptiveAvgPool2d(1), #AdaptiveConcatPool2d(1),
                              #nn.Dropout2d(0.5),
                              Flatten(),
                              init_default(nn.Linear(cin, self.classes), nn.init.kaiming_normal_))
