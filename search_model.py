@@ -16,7 +16,7 @@ from geppy import Toolbox, gep_simple
 parser = argparse.ArgumentParser(description='evolutionary architectural search')
 # evolutionary algorithm hyperparameter
 parser.add_argument('--head_length', type=int, default=3, help='length of gene head')
-parser.add_argument('--num_genes', type=int, default=4, help='num of genes per chromosome')
+parser.add_argument('--num_genes', type=int, default=2, help='num of genes per chromosome')
 parser.add_argument('--num_gen', type=int, default=20, help='num of generations')
 parser.add_argument('--pop_size', type=int, default=20, help='size of population')
 parser.add_argument('--cx_pb', type=list, default=[0.1, 0.6], help='crossover probability')
@@ -25,7 +25,7 @@ parser.add_argument('--invert_pb', type=float, default=0.1, help='inversion prob
 parser.add_argument('--transpose_pb', type=float, default=0.1, help='transposition probability')
 parser.add_argument('--elites', type=int, default=1, help='num of elites selected')
 parser.add_argument('--hof', type=int, default=2, help='hall of fame (record best individuals)')
-parser.add_argument('--path', type=str, default='comp_graphs/experiment_5', help='path to save individuals')
+parser.add_argument('--path', type=str, default='comp_graphs/experiment_1', help='path to save individuals')
 
 # architecture config
 parser.add_argument('--depth_coeff', type=float, default=1.0, help='layer scalar')
@@ -55,7 +55,7 @@ pset.add_program_symbol(cell_graph.cpi)
 conv_symbol = convolution.get_symbol()
 pset.add_cell_symbol(conv_symbol.conv1x1)
 pset.add_cell_symbol(conv_symbol.conv3x3)
-pset.add_cell_symbol(conv_symbol.dwconv3x3)
+#pset.add_cell_symbol(conv_symbol.dwconv3x3)
 pset.add_cell_symbol(conv_symbol.conv1x3)
 pset.add_cell_symbol(conv_symbol.conv3x1)
 #pset.add_cell_symbol(conv_symbol.maxpool3x3)
