@@ -1,1 +1,1 @@
-## Evolutionary NAS with cellular encoding of gene expression programming
+## Evolutionary NAS with Gene Expression Programming of Cellular Encoding
