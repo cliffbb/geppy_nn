@@ -26,6 +26,28 @@ def conv2dpool(cin, cout, ksize=2, stride=2, pool_type='max', bn=NormType.Batch)
                 batchnorm_2d(cout, norm_type=bn),
                 relu(True))
 
+def stem_blk(cin, cout=None, ksize=None, stride=1, padding=None, dilation=None, groups=None,
+                use_relu=True, use_bn=True, bn=NormType.Batch, bias=False, pool='max'):
+    if cout is None: cout = cin
+    if padding is None: padding = ksize // 2
+    if dilation is None: dilation = 1
+    if groups is None: groups = 1
+
+    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding,
+            dilation=dilation, groups=groups, bias=bias), nn.init.kaiming_normal_)]
+    if use_bn: layer.append(batchnorm_2d(cout, norm_type=bn))
+    if use_relu: layer.append(relu(True))
+    if pool=='max': layer.append(nn.MaxPool2d(ksize, stride=2, padding=1))
+    if pool=='avg': layer.append(nn.AvgPool2d(ksize, stride=2, ceil_mode=True, count_include_pad=False))
+
+    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding,
+                                    dilation=dilation, groups=groups, bias=bias), nn.init.kaiming_normal_))
+    if use_bn: layer.append(batchnorm_2d(cout*2, norm_type=bn))
+    if use_relu: layer.append(relu(True))
+    if pool=='max': layer.append(nn.MaxPool2d(ksize, stride=2, padding=1))
+    if pool=='avg': layer.append(nn.AvgPool2d(ksize, stride=2, ceil_mode=True, count_include_pad=False))
+    return nn.Sequential(*layer)
+
 
 def conv2d(cin, cout=None, ksize=None, stride=1, padding=None, dilation=None, groups=None,
                 use_relu=True, use_bn=True, bn=NormType.Batch, bias=False):
@@ -86,4 +108,4 @@ class Flatten(nn.Module):
 
 # exported functions
 __all__ = ['add', 'concat', 'get_op_head', 'get_op_tail', 'scale_channels', 'scale_layer',
-           'conv2d', 'Flatten', 'pool', 'conv2dpool', 'count_parameters']
+           'conv2d', 'stem_blk', 'Flatten', 'pool', 'conv2dpool', 'count_parameters']

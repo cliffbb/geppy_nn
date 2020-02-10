@@ -25,12 +25,12 @@ parser.add_argument('--invert_pb', type=float, default=0.1, help='inversion prob
 parser.add_argument('--transpose_pb', type=float, default=0.1, help='transposition probability')
 parser.add_argument('--elites', type=int, default=1, help='num of elites selected')
 parser.add_argument('--hof', type=int, default=2, help='hall of fame (record best individuals)')
-parser.add_argument('--path', type=str, default='comp_graphs/experiment_1', help='path to save individuals')
+parser.add_argument('--path', type=str, default='comp_graphs/experiment_4', help='path to save individuals')
 
 # architecture config
 parser.add_argument('--depth_coeff', type=float, default=1.0, help='layer scalar')
 parser.add_argument('--width_coeff', type=float, default=1.0, help='channel scalar')
-parser.add_argument('--channels', type=int, default=32, help='initial out channels')
+parser.add_argument('--channels', type=int, default=16, help='initial out channels')
 parser.add_argument('--repeat_list', type=list, default=[1, 1, 1], help='cells repetitions list')
 parser.add_argument('--classes', type=int, default=10, help='num of labels')
 
@@ -38,7 +38,7 @@ parser.add_argument('--classes', type=int, default=10, help='num of labels')
 parser.add_argument('--seed', type=int, default=200, help='training seed')
 parser.add_argument('--max_lr', type=float, default=1e-1, help='max learning rate')
 parser.add_argument('--wd', type=float, default=4e-4, help='weight decay')
-parser.add_argument('--epochs', type=int, default=25, help='training epochs')
+parser.add_argument('--epochs', type=int, default=15, help='training epochs')
 parser.add_argument('--bs', type=int, default=128, help='batch size')
 args = parser.parse_args()
 
