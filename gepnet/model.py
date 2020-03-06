@@ -29,9 +29,9 @@ class GepNetLayer(nn.Module):
             elif get_op_head(op) == 'conv3x1':
                 self.add_module(op, conv2d(cin, ksize=(3, 1), padding=(1, 0)))
             elif get_op_head(op) == 'maxpool3x3':
-                self.add_module(op, pool(pool_type='max', ksize=3))
+                self.add_module(op, pool(pool_type='max'))
             elif get_op_head(op) == 'avgpool3x3':
-                self.add_module(op, pool(pool_type='avg', ksize=3))
+                self.add_module(op, pool(pool_type='avg'))
             else:
                 raise NotImplementedError('Unimplemented convolution operation: ', op)
 

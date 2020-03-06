@@ -3,49 +3,46 @@
 from fastai.vision import nn, init_default, torch, math, relu, batchnorm_2d, NormType
 
 
-def pool(pool_type, ksize=3, stride=1, padding=1):
+def pool(pool_type):
     assert pool_type in ['avg', 'max']
     if pool_type == 'max':
-        return nn.MaxPool2d(ksize, stride=stride, padding=padding)
+        return nn.MaxPool2d(2, stride=2)
     if pool_type == 'avg':
-        return nn.AvgPool2d(ksize, stride=stride, padding=padding, ceil_mode=True, count_include_pad=False)
+        return nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False)
 
 
-def conv2dpool(cin, cout, ksize=2, stride=2, pool_type='max', bn=NormType.Batch):
+def conv2dpool(cin, cout, pool_type, bn=NormType.Batch):
     assert pool_type in ['avg', 'max']
     if pool_type == 'max':
         return nn.Sequential(
-                nn.MaxPool2d(ksize, stride=stride),
+                nn.MaxPool2d(2, stride=2),
                 init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
-                batchnorm_2d(cout, norm_type=bn),
-                relu(True))
+                batchnorm_2d(cout, norm_type=bn))
+                #relu(True))
     if pool_type == 'avg':
         return nn.Sequential(
-                nn.AvgPool2d(ksize, stride=stride, ceil_mode=True, count_include_pad=False),
+                nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False),
                 init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
-                batchnorm_2d(cout, norm_type=bn),
-                relu(True))
+                batchnorm_2d(cout, norm_type=bn))
+                #relu(True))
 
-def stem_blk(cin, cout=None, ksize=None, stride=1, padding=None, dilation=None, groups=None,
-                use_relu=True, use_bn=True, bn=NormType.Batch, bias=False, pool='max'):
+def stem_blk(cin, cout=None, ksize=3, stride=1, use_relu=True, use_bn=True, bn=NormType.Batch,
+             bias=False, pool='avg'):
     if cout is None: cout = cin
-    if padding is None: padding = ksize // 2
-    if dilation is None: dilation = 1
-    if groups is None: groups = 1
-
-    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding,
-            dilation=dilation, groups=groups, bias=bias), nn.init.kaiming_normal_)]
+    padding = ksize // 2
+    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding, bias=bias),
+                          nn.init.kaiming_normal_)]
     if use_bn: layer.append(batchnorm_2d(cout, norm_type=bn))
     if use_relu: layer.append(relu(True))
-    if pool=='max': layer.append(nn.MaxPool2d(ksize, stride=2, padding=1))
-    if pool=='avg': layer.append(nn.AvgPool2d(ksize, stride=2, ceil_mode=True, count_include_pad=False))
+    if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
+    if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
 
-    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding,
-                                    dilation=dilation, groups=groups, bias=bias), nn.init.kaiming_normal_))
+    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=bias),
+                              nn.init.kaiming_normal_))
     if use_bn: layer.append(batchnorm_2d(cout*2, norm_type=bn))
     if use_relu: layer.append(relu(True))
-    if pool=='max': layer.append(nn.MaxPool2d(ksize, stride=2, padding=1))
-    if pool=='avg': layer.append(nn.AvgPool2d(ksize, stride=2, ceil_mode=True, count_include_pad=False))
+    if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
+    if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
     return nn.Sequential(*layer)
 
 
