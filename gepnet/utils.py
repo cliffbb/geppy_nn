@@ -6,9 +6,9 @@ from fastai.vision import nn, init_default, torch, math, relu, batchnorm_2d, Nor
 def pool(pool_type):
     assert pool_type in ['avg', 'max']
     if pool_type == 'max':
-        return nn.MaxPool2d(2, stride=2)
+        return nn.MaxPool2d(3, stride=1, padding=1)
     if pool_type == 'avg':
-        return nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False)
+        return nn.AvgPool2d(3, stride=1, padding=1, ceil_mode=True, count_include_pad=False)
 
 
 def conv2dpool(cin, cout, pool_type, bn=NormType.Batch):
@@ -18,13 +18,12 @@ def conv2dpool(cin, cout, pool_type, bn=NormType.Batch):
                 nn.MaxPool2d(2, stride=2),
                 init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
                 batchnorm_2d(cout, norm_type=bn))
-                #relu(True))
     if pool_type == 'avg':
         return nn.Sequential(
                 nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False),
                 init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
                 batchnorm_2d(cout, norm_type=bn))
-                #relu(True))
+
 
 def stem_blk(cin, cout=None, ksize=3, stride=1, use_relu=True, use_bn=True, bn=NormType.Batch,
              bias=False, pool='avg'):
@@ -46,7 +45,7 @@ def stem_blk(cin, cout=None, ksize=3, stride=1, use_relu=True, use_bn=True, bn=N
     return nn.Sequential(*layer)
 
 
-def conv2d(cin, cout=None, ksize=None, stride=1, padding=None, dilation=None, groups=None,
+def conv2d(cin, cout=None, ksize=3, stride=1, padding=None, dilation=None, groups=None,
                 use_relu=True, use_bn=True, bn=NormType.Batch, bias=False):
     if cout is None: cout = cin
     if padding is None: padding = ksize // 2
@@ -57,6 +56,34 @@ def conv2d(cin, cout=None, ksize=None, stride=1, padding=None, dilation=None, gr
     if use_bn: layer.append(batchnorm_2d(cout, norm_type=bn))
     if use_relu: layer.append(relu(True))
     return nn.Sequential(*layer)
+
+
+def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, affine=True):
+    if cout is None: cout = cin
+    layer = nn.Sequential(
+          nn.ReLU(inplace=False),
+          init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding, dilation=dilation, groups=cin,
+                     bias=False), nn.init.kaiming_normal_),
+          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+          nn.BatchNorm2d(cout, affine=affine))
+    return layer
+
+
+def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, affine=True):
+    if cout is None: cout = cin
+    if padding is None: padding = ksize // 2
+    layer = nn.Sequential(
+          nn.ReLU(inplace=False),
+          init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding, groups=cin, bias=False),
+                       nn.init.kaiming_normal_),
+          init_default(nn.Conv2d(cin, cin, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+          nn.BatchNorm2d(cin, affine=affine),
+          nn.ReLU(inplace=False),
+          init_default(nn.Conv2d(cin, cin, ksize, stride=1, padding=padding, groups=cin, bias=False),
+                       nn.init.kaiming_normal_),
+          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+          nn.BatchNorm2d(cout, affine=affine))
+    return layer
 
 
 def scale_channels(ch, depth_div=8, width_coeff=None, min_depth=None):
@@ -103,6 +130,8 @@ class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.shape[0], -1)
 
+
 # exported functions
 __all__ = ['add', 'concat', 'get_op_head', 'get_op_tail', 'scale_channels', 'scale_layer',
-           'conv2d', 'stem_blk', 'Flatten', 'pool', 'conv2dpool', 'count_parameters']
+           'conv2d', 'stem_blk', 'Flatten', 'pool', 'conv2dpool', 'count_parameters',
+           'sepconv2d', 'dilconv2d']

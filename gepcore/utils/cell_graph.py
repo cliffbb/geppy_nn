@@ -147,7 +147,8 @@ def postorder_traverse(graph, root='input'):
 
         if len(graph.predecessors(node)) != 0:
             labels = [graph.get_node(n).attr['label'] for n in graph.predecessors(node)]
-            comp_order.append([node, graph.predecessors(node), graph.get_node(node).attr['label'], labels])
+            comp_order.append([[node], graph.predecessors(node), [graph.get_node(node).attr['label']],
+                               labels])
     dfs_traverse(root)
     return inputs, nodes_label, comp_order
 

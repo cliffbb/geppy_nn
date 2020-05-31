@@ -16,25 +16,25 @@ from geppy import Toolbox
 
 parser = argparse.ArgumentParser(description='random search')
 # evolutionary algorithm hyperparameter
-parser.add_argument('--head_length', type=int, default=2, help='gene head')
+parser.add_argument('--head_length', type=int, default=3, help='gene head')
 parser.add_argument('--num_genes', type=int, default=4, help='num of genes')
-parser.add_argument('--pop_size', type=int, default=10, help='population')
+parser.add_argument('--pop_size', type=int, default=20, help='population')
 parser.add_argument('--hof', type=int, default=2, help='best individuals')
 parser.add_argument('--dir', type=str, default='mlj_experiments')
 
 # architecture config
 parser.add_argument('--depth_coeff', type=float, default=1.0, help='layer scalar')
 parser.add_argument('--width_coeff', type=float, default=1.0, help='channel scalar')
-parser.add_argument('--channels', type=int, default=16, help='initial out channels')
-parser.add_argument('--repeat_list', type=list, default=[1, 1, 1, 1], help='cells repetitions list')
+parser.add_argument('--channels', type=int, default=32, help='initial out channels')
+parser.add_argument('--repeat_list', type=list, default=[2, 2, 2], help='cells repetitions list')
 parser.add_argument('--classes', type=int, default=45, help='num of labels')
 
 # training search architecture
-parser.add_argument('--seed', type=int, default=300, help='training seed')
-parser.add_argument('--max_lr', type=float, default=3e-3, help='max learning rate')
+parser.add_argument('--seed', type=int, default=434, help='training seed')
+parser.add_argument('--max_lr', type=float, default=1e-2, help='max learning rate')
 parser.add_argument('--wd', type=float, default=4e-4, help='weight decay')
-parser.add_argument('--epochs', type=int, default=2, help='training epochs')
-parser.add_argument('--bs', type=int, default=128, help='batch size')
+parser.add_argument('--epochs', type=int, default=100, help='training epochs')
+parser.add_argument('--bs', type=int, default=256, help='batch size')
 
 args = parser.parse_args()
 
@@ -92,21 +92,21 @@ def random_search():
     # save and draw best individual
     for i, best in enumerate(hof):
         agraph, comp_graph = cell_graph.generate_comp_graph(best)
-        cell_graph.save_graph(agraph, args.dir+'/comp_graphs/best/indv_{}'.format(i))
-        cell_graph.draw_graph(agraph, args.dir+'/comp_graphs/best/indv_{}'.format(i))
-        with open(args.dir+'/comp_graphs/indv_{}/code.pkl'.format(i), 'wb') as f:
+        cell_graph.save_graph(agraph, args.dir+'/4-3-seed-4/best/indv_{}'.format(i))
+        cell_graph.draw_graph(agraph, args.dir+'/4-3-seed-4/best/indv_{}'.format(i))
+        with open(args.dir+'/4-3-seed-4/best/indv_{}/code.pkl'.format(i), 'wb') as f:
             pickle.dump(repr(best), f)
 
     # save population graphs
     for i, p in enumerate(pop):
         agraph, comp_graph = cell_graph.generate_comp_graph(p)
-        cell_graph.save_graph(agraph, args.dir+'/comp_graphs/pop/indv_{}'.format(i))
-        cell_graph.draw_graph(agraph, args.dir+'/comp_graphs/pop/indv_{}'.format(i))
-        with open(args.dir+'/comp_graphs/indv_{}/code.pkl'.format(i), 'wb') as f:
+        cell_graph.save_graph(agraph, args.dir+'/4-3-seed-4/pop/indv_{}'.format(i))
+        cell_graph.draw_graph(agraph, args.dir+'/4-3-seed-4/pop/indv_{}'.format(i))
+        with open(args.dir+'/4-3-seed-4/pop/indv_{}/code.pkl'.format(i), 'wb') as f:
             pickle.dump(repr(p), f)
 
     # save accuracy record
-    with open(args.dir+'/comp_graphs/best/record.pkl', 'wb') as f:
+    with open(args.dir+'/4-3-seed-4/best/record.pkl', 'wb') as f:
         pickle.dump(log, f)
 
 
@@ -148,8 +148,8 @@ def train_model(net):
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
 
-    path = Path("/home/cliff/NWPU-RESISC45")
-    tfms = get_transforms(flip_vert=True, max_lighting=0.1, max_zoom=1.05, max_warp=0.)
+    path = Path("/home/cliff/rs_imagery/NWPU-RESISC45")
+    #tfms = get_transforms(flip_vert=True, max_lighting=0.1, max_zoom=1.05, max_warp=0.)
     data = (ImageList.from_folder(path/'train')
             .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
             .label_from_folder()
