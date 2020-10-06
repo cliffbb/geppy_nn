@@ -1,6 +1,6 @@
 """
 """
-from fastai.vision import nn, relu, init_default, AdaptiveConcatPool2d # NormType
+from fastai.vision.all import nn, init_default  #, AdaptiveConcatPool2d # NormType
 from collections import namedtuple
 from gepnet.utils import *
 
@@ -44,10 +44,10 @@ class GepBlock(nn.Module):
     def __init__(self, cin, comp_graph):
         super(GepBlock, self).__init__()
         self.paths = len(comp_graph)
-        self.relu = relu(True)
+        self.relu = nn.ReLU(True)
         for i in range(self.paths):
             setattr(self, 'path_%d' % i, GepNetLayer(cin, comp_graph[i]))
-        self.convproj = conv2d(cin*self.paths, cin, ksize=1, use_relu=False)
+        self.convproj = conv2d(cin*self.paths, cin, ksize=1)
 
     def forward(self, x):
         results = [None] * self.paths

@@ -5,7 +5,7 @@ from gepcore.operators import *
 from gepnet.model_v2 import get_gepnet, arch_config
 from gepnet.utils import count_parameters
 from scipy.special import expit
-from fastai.vision import *
+from fastai.vision.all import *
 #from fastai.utils.mod_display import *
 import argparse
 
@@ -162,11 +162,11 @@ def train_model(net):
 
     path = untar_data(URLs.CIFAR)
     #tfms = get_transforms()
-    data = (ImageList.from_folder(path/'train')
-            .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
-            .label_from_folder()
-            .databunch(bs=args.bs, num_workers=num_cpus())
-            .normalize(cifar_stats))
+    # data = (ImageList.from_folder(path/'train')
+    #         .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
+    #         .label_from_folder()
+    #         .databunch(bs=args.bs, num_workers=num_cpus())
+    #         .normalize(cifar_stats))
             #.transform(tfms, size=32)
 
     learn = Learner(data, net, metrics=accuracy) #.to_fp16()

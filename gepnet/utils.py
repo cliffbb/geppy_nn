@@ -1,6 +1,6 @@
 """
 """
-from fastai.vision import nn, init_default, torch, math, relu, batchnorm_2d, NormType
+from fastai.vision.all import nn, init_default, torch, math, BatchNorm, NormType
 
 
 def pool(pool_type):
@@ -11,78 +11,122 @@ def pool(pool_type):
         return nn.AvgPool2d(3, stride=1, padding=1, ceil_mode=True, count_include_pad=False)
 
 
-def conv2dpool(cin, cout, pool_type, bn=NormType.Batch):
+def conv2dpool(cin, cout, pool_type, bn=NormType.Weight):
     assert pool_type in ['avg', 'max']
     if pool_type == 'max':
-        return nn.Sequential(
-                nn.MaxPool2d(2, stride=2),
-                init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
-                batchnorm_2d(cout, norm_type=bn))
+        return nn.Sequential(nn.MaxPool2d(2, stride=2),
+                             init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
+                             BatchNorm(cout, norm_type=bn))
     if pool_type == 'avg':
-        return nn.Sequential(
-                nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False),
-                init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
-                batchnorm_2d(cout, norm_type=bn))
+        return nn.Sequential(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False),
+                             init_default(nn.Conv2d(cin, cout, 1, bias=False), nn.init.kaiming_normal_),
+                             BatchNorm(cout, norm_type=bn))
 
 
-def stem_blk(cin, cout=None, ksize=3, stride=1, use_relu=True, use_bn=True, bn=NormType.Batch,
-             bias=False, pool='avg'):
+def conv2dtransp(cin, cout, ksize=2, stride=2):
+    return init_default(nn.ConvTranspose2d(cin, cout, ksize, stride=stride),
+                        nn.init.kaiming_normal_)
+
+
+# def stem_blk(cin, cout=None, ksize=3, stride=1, bn=NormType.BatchZero, pool='avg'):
+#     if cout is None: cout = cin
+#     padding = ksize // 2
+#     layer = [ConvLayer(cin, cout, ks=ksize, stride=stride, padding=padding, norm_type=bn)]
+#     if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
+#     if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
+#
+#     layer.append(ConvLayer(cout, cout*2, ks=ksize, stride=stride, padding=padding, norm_type=bn))
+#     if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
+#     if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
+#     return nn.Sequential(*layer)
+
+
+def stem_blk(cin, cout=None, ksize=3, stride=1, pool='avg', bn=NormType.Weight):
     if cout is None: cout = cin
     padding = ksize // 2
-    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding, bias=bias),
+    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding, bias=False),
                           nn.init.kaiming_normal_)]
-    if use_bn: layer.append(batchnorm_2d(cout, norm_type=bn))
-    if use_relu: layer.append(relu(True))
+    layer.append(BatchNorm(cout, norm_type=bn))
+    layer.append(nn.ReLU(True))
     if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
     if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
 
-    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=bias),
+    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=False),
                               nn.init.kaiming_normal_))
-    if use_bn: layer.append(batchnorm_2d(cout*2, norm_type=bn))
-    if use_relu: layer.append(relu(True))
+    layer.append(BatchNorm(cout*2, norm_type=bn))
+    layer.append(nn.ReLU(True))
     if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
     if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
     return nn.Sequential(*layer)
 
 
-def conv2d(cin, cout=None, ksize=3, stride=1, padding=None, dilation=None, groups=None,
-                use_relu=True, use_bn=True, bn=NormType.Batch, bias=False):
+def conv2d(cin, cout=None, ksize=3, stride=1, padding=None, dilation=None, groups=None, bn=NormType.Weight):
     if cout is None: cout = cin
     if padding is None: padding = ksize // 2
     if dilation is None: dilation = 1
     if groups is None: groups = 1
-    layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding,
-            dilation=dilation, groups=groups, bias=bias), nn.init.kaiming_normal_)]
-    if use_bn: layer.append(batchnorm_2d(cout, norm_type=bn))
-    if use_relu: layer.append(relu(True))
-    return nn.Sequential(*layer)
+    layer = nn.Sequential(init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding,
+                                                 dilation=dilation, groups=groups, bias=False),
+                                       nn.init.kaiming_normal_),
+                          BatchNorm(cout, norm_type=bn), nn.ReLU(True))
+    return layer
+    # layer = ConvLayer(cin, cout, ks=ksize, stride=stride, padding=padding,
+    #                   dilation=dilation, groups=groups, norm_type=bn)
 
 
-def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, affine=True):
+def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, bn=NormType.Weight):
     if cout is None: cout = cin
-    layer = nn.Sequential(
-          nn.ReLU(inplace=False),
-          init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding, dilation=dilation, groups=cin,
-                     bias=False), nn.init.kaiming_normal_),
-          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
-          nn.BatchNorm2d(cout, affine=affine))
+    layer = nn.Sequential(init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding,
+                                                 dilation=dilation, groups=cin, bias=False), nn.init.kaiming_normal_),
+                          BatchNorm(cin, norm_type=bn), nn.ReLU(True),
+                          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+                          BatchNorm(cout, norm_type=bn), nn.ReLU(True))
     return layer
 
 
-def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, affine=True):
+# def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, bn=NormType.BatchZero):
+#     if cout is None: cout = cin
+#     layer = ConvLayer(cin, cout, ks=ksize, stride=stride, padding=padding, dilation=dilation, norm_type=bn)
+#     return layer
+
+
+# def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, bn=NormType.BatchZero):
+#     if cout is None: cout = cin
+#     layer = nn.Sequential(ConvLayer(cin, cout, ks=ksize, stride=stride, padding=padding, dilation=dilation,
+#                                     groups=cin, norm_type=bn),
+#                           ConvLayer(cin, cin, ks=1, padding=0, groups=1, norm_type=bn))
+#     return layer
+
+
+# def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, bn=NormType.BatchZero):
+#     if cout is None: cout = cin
+#     if padding is None: padding = ksize // 2
+#     layer = nn.Sequential(ConvLayer(cin, cin, ks=ksize, stride=stride, padding=padding, groups=cin, norm_type=bn),
+#                           ConvLayer(cin, cin, ks=1, padding=0, groups=1, norm_type=bn))
+#     return layer
+
+
+# def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, bn=NormType.BatchZero):
+#     if cout is None: cout = cin
+#     if padding is None: padding = ksize // 2
+#     layer = nn.Sequential(ConvLayer(cin, cin, ks=ksize, stride=stride, padding=padding, groups=cin, norm_type=bn),
+#                           ConvLayer(cin, cin, ks=1, padding=0, groups=1, norm_type=bn),
+#                           ConvLayer(cin, cin, ks=ksize, stride=1, padding=padding, groups=cin, norm_type=bn),
+#                           ConvLayer(cin, cout, ks=1, padding=0, groups=1, norm_type=bn))
+#     return layer
+
+
+def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, bn=NormType.Weight):
     if cout is None: cout = cin
     if padding is None: padding = ksize // 2
-    layer = nn.Sequential(
-          nn.ReLU(inplace=False),
-          init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding, groups=cin, bias=False),
-                       nn.init.kaiming_normal_),
-          init_default(nn.Conv2d(cin, cin, 1, padding=0, bias=False), nn.init.kaiming_normal_),
-          nn.BatchNorm2d(cin, affine=affine),
-          nn.ReLU(inplace=False),
-          init_default(nn.Conv2d(cin, cin, ksize, stride=1, padding=padding, groups=cin, bias=False),
-                       nn.init.kaiming_normal_),
-          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
-          nn.BatchNorm2d(cout, affine=affine))
+    layer = nn.Sequential(init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding,
+                                                 groups=cin, bias=False), nn.init.kaiming_normal_),
+                          init_default(nn.Conv2d(cin, cin, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+                          BatchNorm(cin, norm_type=bn), nn.ReLU(True),
+                          init_default(nn.Conv2d(cin, cin, ksize, stride=1, padding=padding,
+                                                 groups=cin, bias=False), nn.init.kaiming_normal_),
+                          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+                          BatchNorm(cin, norm_type=bn), nn.ReLU(True))
     return layer
 
 
@@ -134,4 +178,4 @@ class Flatten(nn.Module):
 # exported functions
 __all__ = ['add', 'concat', 'get_op_head', 'get_op_tail', 'scale_channels', 'scale_layer',
            'conv2d', 'stem_blk', 'Flatten', 'pool', 'conv2dpool', 'count_parameters',
-           'sepconv2d', 'dilconv2d']
+           'sepconv2d', 'dilconv2d', 'conv2dtransp']
