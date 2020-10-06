@@ -147,7 +147,6 @@ def search_model():
 
 def train_model(net):
     if not torch.cuda.is_available():
-        log.info('no gpu device available')
         sys.exit(1)
 
     # set random seeds for all individuals
@@ -169,10 +168,10 @@ def train_model(net):
     #         .normalize(cifar_stats))
             #.transform(tfms, size=32)
 
-    learn = Learner(data, net, metrics=accuracy) #.to_fp16()
-    learn.fit_one_cycle(args.epochs, args.max_lr, wd=args.wd)
-    acc = learn.validate()
-    return acc
+    # learn = Learner(data, net, metrics=accuracy) #.to_fp16()
+    # learn.fit_one_cycle(args.epochs, args.max_lr, wd=args.wd)
+    # acc = learn.validate()
+    # return acc
 
 
 def duration(sec):
