@@ -6,6 +6,6 @@ from .gepcore.operators import *
 from .gepcore.symbol import *
 from .gepcore.entity import *
 from .gepnet.utils import *
+from .gepnet.model_v3 import *
 from .gepnet.model_v2 import *
-from .gepnet.model import *
 from .nas_seg import *

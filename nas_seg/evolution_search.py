@@ -1,8 +1,9 @@
 from gepcore.utils import convolution, cell_graph
 from gepcore.entity import Gene, Chromosome
 from gepcore.symbol import PrimitiveSet
+from gepcore.algorithm import gep_EA
 from gepcore.operators import *
-from gepnet.model_v2 import get_gepnet, arch_config
+from gepnet.model_v3 import get_gepnet, arch_config
 from gepnet.utils import count_parameters
 from scipy.special import expit
 from fastai.vision.all import *
@@ -11,7 +12,7 @@ import argparse
 
 # import evolutionary tools from DEAP and GEPPY
 from deap import creator, base, tools
-from geppy import Toolbox, gep_simple
+from geppy import Toolbox
 
 parser = argparse.ArgumentParser(description='evolutionary architectural search')
 # evolutionary algorithm hyperparameter
@@ -20,16 +21,12 @@ parser.add_argument('--num_genes', type=int, default=2, help='num of genes per c
 parser.add_argument('--num_gen', type=int, default=20, help='num of generations')
 parser.add_argument('--pop_size', type=int, default=20, help='size of population')
 parser.add_argument('--cx_pb', type=list, default=[0.1, 0.6], help='crossover probability')
-parser.add_argument('--mu_pb', type=float, default=0.044, help='uniform mutation probability')
-parser.add_argument('--invert_pb', type=float, default=0.1, help='inversion probability')
-parser.add_argument('--transpose_pb', type=float, default=0.1, help='transposition probability')
+parser.add_argument('--mu_pb', type=list, default=[0.044, 0.1], help='mutation probability')
 parser.add_argument('--elites', type=int, default=1, help='num of elites selected')
 parser.add_argument('--hof', type=int, default=2, help='hall of fame (record best individuals)')
-parser.add_argument('--path', type=str, default='comp_graphs/experiment_4', help='path to save individuals')
+parser.add_argument('--path', type=str, default='seg_models/experiment_1', help='path to save individuals')
 
 # architecture config
-parser.add_argument('--depth_coeff', type=float, default=1.0, help='layer scalar')
-parser.add_argument('--width_coeff', type=float, default=1.0, help='channel scalar')
 parser.add_argument('--channels', type=int, default=16, help='initial out channels')
 parser.add_argument('--repeat_list', type=list, default=[1, 1, 1], help='cells repetitions list')
 parser.add_argument('--classes', type=int, default=10, help='num of labels')
@@ -71,6 +68,35 @@ def build_model(comp_graph):
     return get_gepnet(conf)
 
 
+def train_model(net):
+    if not torch.cuda.is_available():
+        sys.exit(1)
+
+    # set random seeds for all individuals
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    # enable torch backends
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+
+    path = untar_data(URLs.CIFAR)
+    # tfms = get_transforms()
+    # data = (ImageList.from_folder(path/'train')
+    #         .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
+    #         .label_from_folder()
+    #         .databunch(bs=args.bs, num_workers=num_cpus())
+    #         .normalize(cifar_stats))
+    #         .transform(tfms, size=32)
+    #
+    # # learn = Learner(data, net, metrics=accuracy) #.to_fp16()
+    # learn.fit_one_cycle(args.epochs, args.max_lr, wd=args.wd)
+    # acc = learn.validate()
+    return
+
+
 def search_model():
     # define fitness and individual type
     creator.create('FitnessMax', base.Fitness, weights=(1,))
@@ -102,11 +128,10 @@ def search_model():
     #toolbox.register('cx_1p', cross_one_point, pb=args.cx_pb)
     toolbox.register('cx_gene', cross_gene, pb=args.cx_pb[0])
     toolbox.register('cx_2p', cross_two_point, pb=args.cx_pb[1])
-    toolbox.register('mut_uniform', mutate_uniform, pset=pset, pb=args.mu_pb)
-    toolbox.register('mut_invert_program', invert_program, pb=args.invert_pb)
-    #toolbox.register('mut_invert_cell', invert_cell, pb=args.invert_pb)
-    toolbox.register('mut_transpose_program', transpose_program, pb=args.transpose_pb)
-    toolbox.register('mut_transpose_cell', transpose_cell, pb=args.transpose_pb)
+    toolbox.register('cx_1p', cross_one_point, pb=args.cx_pb[1])
+    toolbox.register('mut_uniform', mutate_uniform, pset=pset, pb=args.mu_pb[0])
+    toolbox.register('mut_inversion', mutate_inversion, pb=args.mu_pb[1])
+    toolbox.register('mut_transposition', mutate_transposition, pb=args.mu_pb[1])
 
     # evolution statistics
     stats = tools.Statistics(key=lambda ind: ind.fitness.values[0])
@@ -115,18 +140,22 @@ def search_model():
     stats.register("min", np.min)
     stats.register("max", np.max)
 
+    # individual history
+    hist = None
+
     # population size and best individual (hall of fame)
     pop = toolbox.population(n=args.pop_size)
     hof = tools.HallOfFame(args.hof)
 
     # call gep_simple evolutionary algorithm
-    pop, log = gep_simple(pop,
-                          toolbox,
-                          n_generations=args.num_gen,
-                          n_elites=args.elites,
-                          stats=stats,
-                          hall_of_fame=hof,
-                          verbose=True)
+    pop, log = gep_EA(pop=pop,
+                      toolbox=toolbox,
+                      gen_days=args.num_gen,
+                      n_elites=args.elites,
+                      stats=stats,
+                      hof=hof,
+                      history=hist,
+                      verbose=True)
     print('\n', log)
 
     # save and draw best individuals graphs
@@ -143,35 +172,6 @@ def search_model():
     # save stats record
     with open(args.path+'/best/stats.pkl', 'wb') as f:
         pickle.dump(log, f,)
-
-
-def train_model(net):
-    if not torch.cuda.is_available():
-        sys.exit(1)
-
-    # set random seeds for all individuals
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
-    # enable torch backends
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-
-    path = untar_data(URLs.CIFAR)
-    #tfms = get_transforms()
-    # data = (ImageList.from_folder(path/'train')
-    #         .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
-    #         .label_from_folder()
-    #         .databunch(bs=args.bs, num_workers=num_cpus())
-    #         .normalize(cifar_stats))
-            #.transform(tfms, size=32)
-
-    # learn = Learner(data, net, metrics=accuracy) #.to_fp16()
-    # learn.fit_one_cycle(args.epochs, args.max_lr, wd=args.wd)
-    # acc = learn.validate()
-    # return acc
 
 
 def duration(sec):

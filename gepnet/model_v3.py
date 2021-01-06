@@ -1,6 +1,6 @@
 """
 """
-from fastai.vision.all import nn, init_default # AdaptiveConcatPool2d # NormType
+from fastai.vision.all import * #nn, init_default  #, AdaptiveConcatPool2d # NormType
 from collections import namedtuple
 from gepnet.utils import *
 
@@ -16,7 +16,7 @@ class GepNetLayer(nn.Module):
         self.inputs = comp_graph[0]
         self.conv_ops = comp_graph[1]
         self.graph_expr = comp_graph[2]
-
+        #print(self.graph_expr)
         for op in self.conv_ops:
             if get_op_head(op) == 'conv1x1':
                 self.add_module(op, conv2d(cin, ksize=1))
@@ -36,6 +36,7 @@ class GepNetLayer(nn.Module):
                 raise NotImplementedError('Unimplemented convolution operation: ', op)
 
     def forward(self, x):
+        #print(str(self.graph_expr))
         return eval(str(self.graph_expr))
 
 
@@ -72,8 +73,7 @@ class GepNet(nn.Module):
         self.head = self.head_layer()
 
     def stem_layer(self):
-        stem = stem_blk(cin=3, cout=self.channels, ksize=3, pool='avg')
-        self.channels *= 2
+        stem = conv2d(cin=3, cout=self.channels, ksize=3)
         return stem
 
     def gepnet_blocks(self):
@@ -86,7 +86,7 @@ class GepNet(nn.Module):
                 blocks.append(GepBlock(cin, self.comp_graph))
             if blk < blk_size - 1:
                 cout = cin * 2
-                blocks.append(conv2dpool(cin, cout, pool_type='avg'))
+                blocks.append(conv2dpool(cin, cout, pool_type='max'))
                 self.channels = cout
         return nn.Sequential(*blocks)
 

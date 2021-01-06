@@ -41,22 +41,25 @@ def conv2dtransp(cin, cout, ksize=2, stride=2):
 #     return nn.Sequential(*layer)
 
 
-def stem_blk(cin, cout=None, ksize=3, stride=1, pool='avg', bn=NormType.Weight):
-    if cout is None: cout = cin
+def stem_blk(cin, cout=None, ksize=3, stride=1, pool1=None, pool2=None, double_stack=True, bn=NormType.Weight):
+    if cout is None: cout = cin*4
     padding = ksize // 2
     layer = [init_default(nn.Conv2d(cin, cout, ksize, stride=stride, padding=padding, bias=False),
                           nn.init.kaiming_normal_)]
     layer.append(BatchNorm(cout, norm_type=bn))
     layer.append(nn.ReLU(True))
-    if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
-    if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
+    if pool1 is not None:
+        if pool1=='max': layer.append(nn.MaxPool2d(2, stride=2))
+        elif pool1=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
 
-    layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=False),
-                              nn.init.kaiming_normal_))
-    layer.append(BatchNorm(cout*2, norm_type=bn))
-    layer.append(nn.ReLU(True))
-    if pool=='max': layer.append(nn.MaxPool2d(2, stride=2))
-    if pool=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
+    if double_stack:
+        layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=False),
+                                  nn.init.kaiming_normal_))
+        layer.append(BatchNorm(cout*2, norm_type=bn))
+        layer.append(nn.ReLU(True))
+        if pool2 is not None:
+            if pool2=='max': layer.append(nn.MaxPool2d(2, stride=2))
+            elif pool2=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
     return nn.Sequential(*layer)
 
 
@@ -70,8 +73,6 @@ def conv2d(cin, cout=None, ksize=3, stride=1, padding=None, dilation=None, group
                                        nn.init.kaiming_normal_),
                           BatchNorm(cout, norm_type=bn), nn.ReLU(True))
     return layer
-    # layer = ConvLayer(cin, cout, ks=ksize, stride=stride, padding=padding,
-    #                   dilation=dilation, groups=groups, norm_type=bn)
 
 
 def dilconv2d(cin, cout=None, ksize=3, stride=1, padding=2, dilation=2, bn=NormType.Weight):
@@ -122,11 +123,11 @@ def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, bn=NormType.Weigh
     layer = nn.Sequential(init_default(nn.Conv2d(cin, cin, ksize, stride=stride, padding=padding,
                                                  groups=cin, bias=False), nn.init.kaiming_normal_),
                           init_default(nn.Conv2d(cin, cin, 1, padding=0, bias=False), nn.init.kaiming_normal_),
-                          BatchNorm(cin, norm_type=bn), nn.ReLU(True),
-                          init_default(nn.Conv2d(cin, cin, ksize, stride=1, padding=padding,
-                                                 groups=cin, bias=False), nn.init.kaiming_normal_),
-                          init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
-                          BatchNorm(cin, norm_type=bn), nn.ReLU(True))
+                          BatchNorm(cin, norm_type=bn), nn.ReLU(True))#,
+                          # init_default(nn.Conv2d(cin, cin, ksize, stride=1, padding=padding,
+                          #                        groups=cin, bias=False), nn.init.kaiming_normal_),
+                          # init_default(nn.Conv2d(cin, cout, 1, padding=0, bias=False), nn.init.kaiming_normal_),
+                          # BatchNorm(cin, norm_type=bn), nn.ReLU(True))
     return layer
 
 
@@ -153,7 +154,7 @@ def add(*tensors):
     return x
 
 
-def concat(*tensors):
+def cat(*tensors):
     return torch.cat(tensors, dim=1)
 
 
@@ -169,13 +170,13 @@ def count_parameters(model):
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return total_params/1e6
 
-
-class Flatten(nn.Module):
-    def forward(self, x):
-        return x.view(x.shape[0], -1)
-
+#
+# class Flatten(nn.Module):
+#     def forward(self, x):
+#         return x.view(x.shape[0], -1)
+#
 
 # exported functions
-__all__ = ['add', 'concat', 'get_op_head', 'get_op_tail', 'scale_channels', 'scale_layer',
-           'conv2d', 'stem_blk', 'Flatten', 'pool', 'conv2dpool', 'count_parameters',
-           'sepconv2d', 'dilconv2d', 'conv2dtransp']
+__all__ = ['add', 'get_op_head', 'get_op_tail', 'scale_channels', 'scale_layer',
+           'conv2d', 'stem_blk', 'pool', 'conv2dpool', 'count_parameters',
+           'sepconv2d', 'dilconv2d', 'conv2dtransp', 'cat']

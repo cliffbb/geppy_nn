@@ -116,15 +116,42 @@ def mutate_uniform(indv, pset, indpb=None):
     head = indv[0].head_length
     cell = indv[0].cell_length
     for i, gene in enumerate(indv):
-        for j in range(head):
-            if random.random() < indpb:
+        if random.random() < indpb:
+            for j in range(head):
+            # if random.random() < indpb:
                 gene[j] = select_program(pset)
                 if _DEBUG: print('Gene {} mutated at point {}'.format(i, j))
-        for k in range(head, head + cell):
-            if random.random() < indpb:
+            for k in range(head, head + cell):
+            # if random.random() < indpb:
                 gene[k] = select_cell(pset)
                 if _DEBUG: print('Gene {} mutated at point {}'.format(i, k))
     return indv,
+
+
+def mutate_transposition(indv, size=2):
+    """
+    Get insertion-sequence transposition mutation of a chromosome with a given probability.
+    :param indv: obj, the individual/chromosome to be mutated
+    :param size: int, the length of string to transpose
+    :return: tuple, one child of an individual parent
+    """
+    if random.random() < 0.5:
+        return transpose_program(indv=indv, size=size)
+    else:
+        return transpose_cell(indv=indv, size=size)
+
+
+def mutate_inversion(indv, size=2):
+    """
+    Get inversion mutation of a chromosome with a given probability.
+    :param indv: obj, the individual/chromosome to be mutated
+    :param size: int, the length of string to invert
+    :return: tuple, one child of an individual parent
+    """
+    if random.random() < 0.5:
+        return invert_program(indv=indv, size=size)
+    else:
+        return invert_cell(indv=indv, size=size)
 
 
 def invert_program(indv, size=2):
@@ -269,5 +296,5 @@ def transpose_gene(indv):
     return indv,
 
 # exported functions
-__all__ = ['cross_one_point', 'cross_two_point', 'cross_gene', 'mutate_uniform', 'invert_program',
-           'invert_cell', 'transpose_cell', 'transpose_program', 'transpose_gene']
+__all__ = ['cross_one_point', 'cross_two_point', 'cross_gene', 'mutate_uniform', 'mutate_inversion',
+           'mutate_transposition', 'transpose_gene']

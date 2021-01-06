@@ -2,7 +2,7 @@ from gepcore.utils import convolution, cell_graph
 from gepcore.entity import Gene, Chromosome
 from gepcore.symbol import PrimitiveSet
 # from gepcore.operators import *
-from gepnet.model_v2 import get_gepnet, arch_config
+from gepnet.model_v3 import get_gepnet, arch_config
 # from gepnet.utils import count_parameters
 # from scipy.special import expit
 from fastai.vision import *
