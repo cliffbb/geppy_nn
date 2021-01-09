@@ -1,7 +1,7 @@
 from gepcore.utils import convolution, cell_graph
 from gepcore.entity import Gene, Chromosome
 from gepcore.symbol import PrimitiveSet
-from fastai.vision import np, random, pickle
+from fastai.vision.all import np, random, pickle
 import argparse
 
 # import evolutionary tools from DEAP and GEPPY

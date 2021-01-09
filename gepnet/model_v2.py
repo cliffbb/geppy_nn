@@ -28,9 +28,9 @@ class CompGraph(nn.Module):
             elif get_op_head(op) == 'conv3x1':
                 self.add_module(op, conv2d(cin, ksize=(3, 1), padding=(1, 0)))
             elif get_op_head(op) == 'maxpool3x3':
-                self.add_module(op, pool(pool_type='max'))
+                self.add_module(op, pooling(pool_type='max'))
             elif get_op_head(op) == 'avgpool3x3':
-                self.add_module(op, pool(pool_type='avg'))
+                self.add_module(op, pooling(pool_type='avg'))
             elif get_op_head(op) == 'sepconv3x3':
                 self.add_module(op, sepconv2d(cin, ksize=3))
             elif get_op_head(op) == 'sepconv5x5':
@@ -60,7 +60,7 @@ class Cell(nn.Module):
         cell = []
         for i in range(self.n_branch):
             cell.append(getattr(self, 'gene_%d' % i)(x))
-        cell = self.proj(cat(*cell))
+        cell = self.proj(torch.cat(*cell))
         return self.relu(cell + x)
 
 

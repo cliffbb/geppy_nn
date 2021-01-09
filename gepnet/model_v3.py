@@ -29,9 +29,9 @@ class GepNetLayer(nn.Module):
             elif get_op_head(op) == 'conv3x1':
                 self.add_module(op, conv2d(cin, ksize=(3, 1), padding=(1, 0)))
             elif get_op_head(op) == 'maxpool3x3':
-                self.add_module(op, pool(pool_type='max'))
+                self.add_module(op, pooling(pool_type='max'))
             elif get_op_head(op) == 'avgpool3x3':
-                self.add_module(op, pool(pool_type='avg'))
+                self.add_module(op, pooling(pool_type='avg'))
             else:
                 raise NotImplementedError('Unimplemented convolution operation: ', op)
 
@@ -53,7 +53,7 @@ class GepBlock(nn.Module):
         results = [None] * self.paths
         for i in range(self.paths):
             results[i] = getattr(self, 'path_%d' % i)(x)
-        results = self.convproj(concat(*results))
+        results = self.convproj(torch.cat(*results))
         return self.relu(results + x)
 
 

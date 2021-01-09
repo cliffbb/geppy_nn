@@ -30,9 +30,9 @@ class CompGraph(nn.Module):
             # elif get_op_head(op) == 'conv3x1x3':
             #     self.add_module(op, conv2d_asy(cin))
             elif get_op_head(op) == 'maxpool3x3':
-                self.add_module(op, pool(pool_type='max'))
+                self.add_module(op, pooling(pool_type='max'))
             elif get_op_head(op) == 'avgpool3x3':
-                self.add_module(op, pool(pool_type='avg'))
+                self.add_module(op, pooling(pool_type='avg'))
             elif get_op_head(op) == 'sepconv3x3':
                 self.add_module(op, sepconv2d(cin, ksize=3))
             elif get_op_head(op) == 'sepconv5x5':
@@ -68,75 +68,7 @@ class Cell(nn.Module):
         # x = self.proj(concat(self.layers(x)))
         # x = self.cell(x)
         # print('concat:', concat(*cell).shape, x.shape)
-        return cat(*cell) #self.relu(cell + x)
-
-
-
-# hidden_dim = in_planes * expand_ratio
-# reduced_dim = max(1, int(in_planes / reduction_ratio))
-# class SqueezeExcitation(nn.Module):
-#
-#     def __init__(self, in_planes, reduced_dim):
-#         super(SqueezeExcitation, self).__init__()
-#         self.se = nn.Sequential(
-#             nn.AdaptiveAvgPool2d(1),
-#             nn.Conv2d(in_planes, reduced_dim, 1),
-#             Swish(),
-#             nn.Conv2d(reduced_dim, in_planes, 1),
-#             nn.Sigmoid(),
-#         )
-#
-#     def forward(self, x):
-#         return x * self.se(x)
-# # Squeeze and Excitation
-# if self.has_se:
-#     x_squeezed = F.adaptive_avg_pool2d(x, 1)
-#     x_squeezed = self._se_reduce(x_squeezed)
-#     x_squeezed = self._swish(x_squeezed)
-#     x_squeezed = self._se_expand(x_squeezed)
-#     x = torch.sigmoid(x_squeezed) * x
-#
-# # Squeeze and Excitation layer, if desired
-# if self.has_se:
-#     Conv2d = get_same_padding_conv2d(image_size=(1, 1))
-#     num_squeezed_channels = max(1, int(self._block_args.input_filters * self._block_args.se_ratio))
-#     self._se_reduce = Conv2d(in_channels=oup, out_channels=num_squeezed_channels, kernel_size=1)
-#     self._se_expand = Conv2d(in_channels=num_squeezed_channels, out_channels=oup, kernel_size=1)
-#
-# class SqEx(nn.Module):
-#     def __init__(self, n_features, reduction=16):
-#         super(SqEx, self).__init__()
-#
-#         if n_features % reduction != 0:
-#             raise ValueError('n_features must be divisible by reduction (default = 16)')
-#
-#         self.linear1 = nn.Linear(n_features, n_features // reduction, bias=True)
-#         self.nonlin1 = nn.ReLU(inplace=True)
-#         self.linear2 = nn.Linear(n_features // reduction, n_features, bias=True)
-#         self.nonlin2 = nn.Sigmoid()
-#
-#     def forward(self, x):
-#         y = F.avg_pool2d(x, kernel_size=x.size()[2:4])
-#         y = y.permute(0, 2, 3, 1)
-#         y = self.nonlin1(self.linear1(y))
-#         y = self.nonlin2(self.linear2(y))
-#         y = y.permute(0, 3, 1, 2)
-#         y = x * y
-#         return y
-
-
-# # Cell
-# class ProdLayer(Module):
-#     "Merge a shortcut with the result of the module by multiplying them."
-#     def forward(self, x): return x * x.orig
-#
-# # Cell
-# def SEModule(ch, reduction, act_cls=defaults.activation):
-#     nf = math.ceil(ch//reduction/8)*8
-#     return SequentialEx(nn.AdaptiveAvgPool2d(1),
-#                         ConvLayer(ch, nf, ks=1, norm_type=None, act_cls=act_cls),
-#                         ConvLayer(nf, ch, ks=1, norm_type=None, act_cls=nn.Sigmoid),
-#                         ProdLayer())
+        return torch.cat(*cell) #self.relu(cell + x)
 
 
 class Network(nn.Module):

@@ -5,7 +5,7 @@ from gepcore.symbol import PrimitiveSet
 from gepnet.model_v3 import get_gepnet, arch_config
 # from gepnet.utils import count_parameters
 # from scipy.special import expit
-from fastai.vision import *
+from fastai.vision.all import *
 #from fastai.callbacks import SaveModelCallback
 # from fastai.utils.mod_display import *
 import argparse
