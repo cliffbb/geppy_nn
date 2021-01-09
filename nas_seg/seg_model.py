@@ -73,15 +73,15 @@ class Network(nn.Module):
         return stem_blk(cin=3, cout=self.channels, ksize=3, stride=2, double_stack=True)
 
     def encoder(self):
-        encoder_blks = []
+        cell_blks = []
         n_blk = 4
         for i in range(n_blk):
             cin = self.channels
-            for c in range(1):
-                encoder_blks.append(('enc{}_{}'.format(i,c), Cell(cin, self.comp_graphs)))
+            # for c in range(1):
+            cell_blks.append(('cell_{}'.format(i), Cell(cin, self.comp_graphs)))
             if i < n_blk - 1:
                 cout = cin * 2
-                encoder_blks.append(('dpool{}'.format(i), conv2dpool(cin, cout, pool_type='max')))
+                cell_blks.append(('downsample_{}'.format(i), conv2dpool(cin, cout, pool_type='max')))
                 self.channels = cout
         return nn.Sequential(OrderedDict(encoder_blks))
 

@@ -60,7 +60,7 @@ class Cell(nn.Module):
         cell = []
         for i in range(self.n_branch):
             cell.append(getattr(self, 'gene_%d' % i)(x))
-        cell = self.proj(torch.cat(*cell))
+        cell = self.proj(Cat(cell))
         return self.relu(cell + x)
 
 
