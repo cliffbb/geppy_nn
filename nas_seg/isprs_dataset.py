@@ -5,10 +5,8 @@ from skimage.transform import rotate
 from skimage.util import img_as_ubyte
 import os
 from tqdm import tqdm
-from fastai.vision.all import get_image_files #, open_image, open_mask
-# from  torch.utils.data import Dataset
+from fastai.vision.all import get_image_files
 from torchvision.datasets.vision import VisionDataset
-from PIL import Image
 
 
 # ISPRS dataset mask codes
@@ -55,7 +53,7 @@ def extract_patches(img, stride=64, size=(128, 128)):
     return patches
 
 
-def transforms_(patch, flip_v=False, flip_h=False, rotation=None):
+def transforms_(patch, flip_v=True, flip_h=True, rotation=None):
     """data augmentation"""
     patches = [patch]
     if rotation == None:

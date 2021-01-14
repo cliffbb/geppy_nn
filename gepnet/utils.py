@@ -40,9 +40,9 @@ def stem_blk(cin, cout=None, ksize=3, stride=1, pool1=None, pool2=None, double_s
         elif pool1=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
 
     if double_stack:
-        layer.append(init_default(nn.Conv2d(cout, cout, ksize, stride=stride, padding=padding, bias=False),
+        layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=False),
                                   nn.init.kaiming_normal_))
-        layer.append(BatchNorm(cout, norm_type=bn))
+        layer.append(BatchNorm(cout*2, norm_type=bn))
         layer.append(nn.ReLU(True))
         if pool2 is not None:
             if pool2=='max': layer.append(nn.MaxPool2d(2, stride=2))
@@ -112,9 +112,9 @@ class ASPP(nn.Module):
                                         BatchNorm(cin, norm_type=bn))
         self.conv_p = nn.Sequential(init_default(nn.Conv2d(cin, cin, 1, bias=False), nn.init.kaiming_normal_),
                                     BatchNorm(cin, norm_type=bn), nn.ReLU(True))
-        self.conv_cat = nn.Sequential(init_default(nn.Conv2d(cin*3, n_classes, 1, bias=False, stride=1,
-                                                             padding=0), nn.init.kaiming_normal_),
-                                      BatchNorm(cin, norm_type=bn))
+        self.conv_cat = nn.Sequential(init_default(nn.Conv2d(cin*3, n_classes, 1, bias=False),
+                                                   nn.init.kaiming_normal_),
+                                      BatchNorm(n_classes, norm_type=bn))
 
     def forward(self, x):
         conv1x1 = self.conv1x1(x)
@@ -125,9 +125,9 @@ class ASPP(nn.Module):
         upsample = nn.Upsample(size=x.size()[2:], mode='bilinear', align_corners=True)
         image_pool = self.conv_p(image_pool(x))
         upsample = upsample(image_pool)
-        # concate
-        concate = torch.cat([conv1x1, conv3x3, upsample], dim=1)
-        return self.conv_cat(concate)
+        # concat
+        concat = torch.cat([conv1x1, conv3x3, upsample], dim=1)
+        return self.conv_cat(concat)
 
 
 def scale_channels(ch, depth_div=8, width_coeff=None, min_depth=None):
@@ -146,7 +146,7 @@ def scale_layer(ops, depth_coeff=None):
     return int(math.ceil(ops * depth_coeff))
 
 
-def add(tensors):
+def add(*tensors):
     return torch.sum(torch.stack(tensors), dim=0)
     # x = 0
     # for t in tensors:

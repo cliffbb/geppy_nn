@@ -53,7 +53,7 @@ class GepBlock(nn.Module):
         results = [None] * self.paths
         for i in range(self.paths):
             results[i] = getattr(self, 'path_%d' % i)(x)
-        results = self.convproj(Cat(results))
+        results = self.convproj(torch.cat(results, dim=1))
         return self.relu(results + x)
 
 

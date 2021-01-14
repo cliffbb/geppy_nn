@@ -24,7 +24,7 @@ parser.add_argument('--cx_pb', type=list, default=[0.1, 0.6], help='crossover pr
 parser.add_argument('--mu_pb', type=list, default=[0.044, 0.1], help='mutation probability')
 parser.add_argument('--elites', type=int, default=1, help='num of elites selected')
 parser.add_argument('--hof', type=int, default=2, help='hall of fame (record best individuals)')
-parser.add_argument('--path', type=str, default='seg_models/experiment_1', help='path to save individuals')
+parser.add_argument('--path', type=str, default='seg_graphs/experiment_1', help='path to save individuals')
 
 # architecture config
 parser.add_argument('--channels', type=int, default=16, help='initial out channels')

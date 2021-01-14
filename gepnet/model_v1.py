@@ -68,7 +68,7 @@ class Cell(nn.Module):
         # x = self.proj(concat(self.layers(x)))
         # x = self.cell(x)
         # print('concat:', concat(*cell).shape, x.shape)
-        return Cat(cell) #self.relu(cell + x)
+        return torch.cat(cell, dim=1) #self.relu(cell + x)
 
 
 class Network(nn.Module):

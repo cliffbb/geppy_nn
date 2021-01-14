@@ -4,7 +4,7 @@ from fastai.vision.all import * #nn, init_default , torch #AdaptiveConcatPool2d 
 from collections import namedtuple, OrderedDict
 from gepnet.utils import *
 
-arch_config = namedtuple('arch_config', ['comp_graphs', 'channels', 'classes', 'img_size'])
+arch_config = namedtuple('arch_config', ['comp_graphs', 'channels', 'input_size', 'classes'])
 arch_config.__new__.__defaults__ = (None,) * len(arch_config._fields)
 
 
@@ -41,7 +41,7 @@ class Cell(nn.Module):
     def __init__(self, cin, comp_graph):
         super(Cell, self).__init__()
         self.n_branch = len(comp_graph)
-        self.relu = nn.ReLU(True)
+        # self.relu = nn.ReLU(True)
         for i in range(self.n_branch):
             setattr(self, 'branch_%d' % i, Layer(cin, comp_graph[i]))
         # self.convproj = conv2d(cin*self.n_branch, cin, ksize=1)
@@ -51,7 +51,7 @@ class Cell(nn.Module):
         cell = [None] * self.n_branch
         for i in range(self.n_branch):
             cell[i] = getattr(self, 'branch_%d' % i)(x)
-        cell = self.convproj(Cat(cell))
+        cell = self.convproj(torch.cat(cell, dim=1))
         return cell # self.relu(cell + x)
 
 
@@ -62,15 +62,15 @@ class Network(nn.Module):
         # super().__init__()
         self.comp_graphs = model_config.comp_graphs
         self.channels = model_config.channels
+        self.input_size = model_config.input_size
         self.classes = model_config.classes
-        self.img_size = model_config.img_size
 
         self.stem_ = self.stem()
         for name, module in self.encoder().named_children():
             setattr(self, name, module)
-        for name, module in self.decoder().named_children():
-            setattr(self, name, module)
-        self.head_ = self.head()
+        # for name, module in self.decoder().named_children():
+        #     setattr(self, name, module)
+        # self.head_ = self.head()
 
     def stem(self):
         return stem_blk(cin=3, cout=self.channels, ksize=3, stride=2, double_stack=True)
@@ -83,9 +83,10 @@ class Network(nn.Module):
         for i in range(n_blk):
             cin = self.channels * 2
             cell_blks.append(('cell_{}'.format(i), Cell(cin, self.comp_graphs)))
-            cell_blks.append(('aspp_{}'.format(i), ASPP(cin, padding=pad_dil, dilation=pad_dil,
+            cell_blks.append(('aspp_{}'.format(i), ASPP(cin*2, padding=pad_dil, dilation=pad_dil,
                                                         n_classes=self.classes)))
-            pad_dil /= 2
+            pad_dil //= 2
+            self.channels = cin
         return nn.Sequential(OrderedDict(cell_blks))
 
     # def decoder(self):
@@ -122,7 +123,7 @@ class Network(nn.Module):
         aspp_2 = self.aspp_2(cell_2)
         aspp_3 = self.aspp_3(cell_3)
 
-        upsample = nn.Upsample(size=(self.img_size, self.img_size), mode='bilinear', align_corners=True)
+        upsample = nn.Upsample(size=(self.input_size, self.input_size), mode='bilinear', align_corners=True)
         aspp_0 = upsample(aspp_0)
         aspp_1 = upsample(aspp_1)
         aspp_2 = upsample(aspp_2)
