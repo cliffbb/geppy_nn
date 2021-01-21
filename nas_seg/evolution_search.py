@@ -3,11 +3,11 @@ from gepcore.entity import Gene, Chromosome
 from gepcore.symbol import PrimitiveSet
 from gepcore.algorithm import gep_EA
 from gepcore.operators import *
-from gepnet.model_v3 import get_gepnet, arch_config
-from gepnet.utils import count_parameters
-from scipy.special import expit
+from nas_seg.seg_model import *
+# from gepnet.utils import count_parameters
+# from scipy.special import expit
 from fastai.vision.all import *
-#from fastai.utils.mod_display import *
+
 import argparse
 
 # import evolutionary tools from DEAP and GEPPY
@@ -16,29 +16,28 @@ from geppy import Toolbox
 
 parser = argparse.ArgumentParser(description='evolutionary architectural search')
 # evolutionary algorithm hyperparameter
-parser.add_argument('--head_length', type=int, default=3, help='length of gene head')
-parser.add_argument('--num_genes', type=int, default=2, help='num of genes per chromosome')
+parser.add_argument('--head_length', type=int, default=2, help='length of gene head')
+parser.add_argument('--num_genes', type=int, default=3, help='num of genes per chromosome')
 parser.add_argument('--num_gen', type=int, default=20, help='num of generations')
 parser.add_argument('--pop_size', type=int, default=20, help='size of population')
 parser.add_argument('--cx_pb', type=list, default=[0.1, 0.6], help='crossover probability')
 parser.add_argument('--mu_pb', type=list, default=[0.044, 0.1], help='mutation probability')
 parser.add_argument('--elites', type=int, default=1, help='num of elites selected')
 parser.add_argument('--hof', type=int, default=2, help='hall of fame (record best individuals)')
-parser.add_argument('--path', type=str, default='seg_graphs/experiment_1', help='path to save individuals')
+parser.add_argument('--path', type=str, default='comp_graphs/experiment_1', help='path to save individuals')
 
 # architecture config
 parser.add_argument('--channels', type=int, default=16, help='initial out channels')
-parser.add_argument('--repeat_list', type=list, default=[1, 1, 1], help='cells repetitions list')
-parser.add_argument('--classes', type=int, default=10, help='num of labels')
+parser.add_argument('--input_size', type=int, default=128, help='input image size')
+parser.add_argument('--classes', type=int, default=6, help='num of labels')
 
 # training search architecture
 parser.add_argument('--seed', type=int, default=200, help='training seed')
-parser.add_argument('--max_lr', type=float, default=1e-1, help='max learning rate')
-parser.add_argument('--wd', type=float, default=4e-4, help='weight decay')
-parser.add_argument('--epochs', type=int, default=15, help='training epochs')
+parser.add_argument('--max_lr', type=float, default=1e-2, help='max learning rate')
+parser.add_argument('--wd', type=float, default=1e-4, help='weight decay')
+parser.add_argument('--epochs', type=int, default=10, help='training epochs')
 parser.add_argument('--bs', type=int, default=128, help='batch size')
 args = parser.parse_args()
-
 
 # define primitive set
 pset = PrimitiveSet('cnn')
@@ -50,28 +49,25 @@ pset.add_program_symbol(cell_graph.cpi)
 
 # add convolutional operations symbols
 conv_symbol = convolution.get_symbol()
-pset.add_cell_symbol(conv_symbol.conv1x1)
-pset.add_cell_symbol(conv_symbol.conv3x3)
-#pset.add_cell_symbol(conv_symbol.dwconv3x3)
-pset.add_cell_symbol(conv_symbol.conv1x3)
-pset.add_cell_symbol(conv_symbol.conv3x1)
-#pset.add_cell_symbol(conv_symbol.maxpool3x3)
+pset.add_cell_symbol(conv_symbol.sepconv3x3)
+pset.add_cell_symbol(conv_symbol.sepconv5x5)
+pset.add_cell_symbol(conv_symbol.dilconv3x3)
+pset.add_cell_symbol(conv_symbol.dilconv5x5)
+pset.add_cell_symbol(conv_symbol.maxpool3x3)
+pset.add_cell_symbol(conv_symbol.avgpool3x3)
 
 
-def build_model(comp_graph):
-    conf = arch_config(comp_graph=comp_graph,
-                       depth_coeff=args.depth_coeff,
-                       width_coeff=args.width_coeff,
+def build_model(comp_graphs):
+    conf = arch_config(comp_graphs=comp_graphs,
                        channels=args.channels,
-                       repeat_list=args.repeat_list,
+                       input_size=args.input_size,
                        classes=args.classes)
-    return get_gepnet(conf)
+    return Network(conf)
 
 
 def train_model(net):
     if not torch.cuda.is_available():
         sys.exit(1)
-
     # set random seeds for all individuals
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -82,19 +78,34 @@ def train_model(net):
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
 
-    path = untar_data(URLs.CIFAR)
-    # tfms = get_transforms()
-    # data = (ImageList.from_folder(path/'train')
-    #         .split_by_rand_pct(valid_pct=0.2, seed=args.seed)
-    #         .label_from_folder()
-    #         .databunch(bs=args.bs, num_workers=num_cpus())
-    #         .normalize(cifar_stats))
-    #         .transform(tfms, size=32)
-    #
-    # # learn = Learner(data, net, metrics=accuracy) #.to_fp16()
-    # learn.fit_one_cycle(args.epochs, args.max_lr, wd=args.wd)
-    # acc = learn.validate()
-    return
+    def overall_acc(preds, target):
+        target = target.squeeze(1)
+        return (preds.argmax(dim=1) == target).float().mean()
+
+    # dataset path
+    def get_mask(x):
+        dset = x.parent.name
+        path = x.parent.parent.parent/'masks'/dset
+        name = x.name
+        return path/name
+
+    dataset_dir = Path.home()/'rs_imagery/ISPRS_DATASETS/Vaihingen'
+    data_path = dataset_dir/'vaihingen_{}'.format(args.input_size)
+    img_path = data_path/'images/train'
+    labels = np.array(["imp. surf.", "buildings", "low veg.", "trees", "cars", "clutter"])
+    data = DataBlock(blocks=(ImageBlock, MaskBlock(codes=labels)),
+                     get_items=get_image_files,
+                     get_y=get_mask,
+                     splitter=RandomSplitter(seed=42),
+                     batch_tfms=[*aug_transforms(flip_vert=True, size=args.input_size),
+                                 Normalize.from_stats([0.4769, 0.3227, 0.3191], [0.1967, 0.1358, 0.1300])])
+
+    dls = data.dataloaders(img_path, bs=20)
+    metrics = overall_acc
+    learn = Learner(dls, net, wd=args.wd, metrics=metrics)
+    learn.fit_one_cycle(args.epochs, args.max_lr)
+    acc = learn.validate()
+    return acc
 
 
 def search_model():
@@ -111,13 +122,12 @@ def search_model():
     # translate individuals into computation graph (phenotype space)
     toolbox.register('comp_graph', cell_graph.generate_comp_graph)
 
-    # evaluation function
+    # build, train and evaluate an individual network
     def evaluate(indv):
         _, comp_graph = toolbox.comp_graph(indv)
         net = build_model(comp_graph)
         acc = train_model(net)
-        #size = count_parameters(net)
-        fit = acc[1].item() #+ 1 / expit(size)
+        fit = acc[1].item()
         return fit,
 
     # evaluate and select
@@ -125,7 +135,6 @@ def search_model():
     toolbox.register('select', tools.selRoulette)
 
     # recombine and mutate
-    #toolbox.register('cx_1p', cross_one_point, pb=args.cx_pb)
     toolbox.register('cx_gene', cross_gene, pb=args.cx_pb[0])
     toolbox.register('cx_2p', cross_two_point, pb=args.cx_pb[1])
     toolbox.register('cx_1p', cross_one_point, pb=args.cx_pb[1])
@@ -141,14 +150,21 @@ def search_model():
     stats.register("max", np.max)
 
     # individual history
-    hist = None
+    hist = tools.History()
+    # decorate the variation operators
+    toolbox.decorate('cx_gene', hist.decorator)
+    toolbox.decorate('cx_2p', hist.decorator)
+    toolbox.decorate('cx_1p', hist.decorator)
+    toolbox.decorate("mut_uniform", hist.decorator)
+    toolbox.decorate("mut_inversion", hist.decorator)
+    toolbox.decorate("mut_transposition", hist.decorator)
 
     # population size and best individual (hall of fame)
     pop = toolbox.population(n=args.pop_size)
     hof = tools.HallOfFame(args.hof)
 
     # call gep_simple evolutionary algorithm
-    pop, log = gep_EA(pop=pop,
+    pop, log, his = gep_EA(pop=pop,
                       toolbox=toolbox,
                       gen_days=args.num_gen,
                       n_elites=args.elites,
@@ -171,19 +187,16 @@ def search_model():
 
     # save stats record
     with open(args.path+'/best/stats.pkl', 'wb') as f:
-        pickle.dump(log, f,)
+        pickle.dump(log, f)
 
-
-def duration(sec):
-    days, sec = sec//(24*3600), sec%(24*3600)
-    hrs, sec = sec//(3600), sec%3600
-    mins, sec = sec//60, sec%60
-    print()
-    print('Duration: %d:%02d:%02d:%02d' %(days, hrs, mins, sec))
+    # save history of individuals
+    with open(args.path + '/best/history.pkl', 'wb') as f:
+        pickle.dump(his, f)
 
 # start evolution process
 if __name__=='__main__':
-    import time
-    start = time.time()
+    from datetime import datetime
+    start = datetime.now()
     search_model()
-    duration(time.time() - start)
+    tm = datetime.now() - start
+    print(tm)

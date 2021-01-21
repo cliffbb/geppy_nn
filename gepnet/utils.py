@@ -40,7 +40,7 @@ def stem_blk(cin, cout=None, ksize=3, stride=1, pool1=None, pool2=None, double_s
         elif pool1=='avg': layer.append(nn.AvgPool2d(2, stride=2, ceil_mode=True, count_include_pad=False))
 
     if double_stack:
-        layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=stride, padding=padding, bias=False),
+        layer.append(init_default(nn.Conv2d(cout, cout*2, ksize, stride=1, padding=padding, bias=False),
                                   nn.init.kaiming_normal_))
         layer.append(BatchNorm(cout*2, norm_type=bn))
         layer.append(nn.ReLU(True))
@@ -103,22 +103,30 @@ def sepconv2d(cin, cout=None, ksize=3, stride=1, padding=None, bn=NormType.Weigh
 
 
 class ASPP(nn.Module):
-    def __init__(self, cin, padding, dilation, n_classes, bn=NormType.Weight):
+    def __init__(self, cin, pad, dil, n_classes, bn=NormType.Weight):
         super(ASPP, self).__init__()
         self.conv1x1 = nn.Sequential(init_default(nn.Conv2d(cin, cin, 1, bias=False), nn.init.kaiming_normal_),
                                      BatchNorm(cin, norm_type=bn))
-        self.dilconv3x3 = nn.Sequential(init_default(nn.Conv2d(cin, cin, 3, padding=padding, dilation=dilation,
+        self.dilconv3x3_0 = nn.Sequential(init_default(nn.Conv2d(cin, cin, 3, padding=pad, dilation=dil,
                                                                bias=False),nn.init.kaiming_normal_),
+                                        BatchNorm(cin, norm_type=bn))
+        self.dilconv3x3_1 = nn.Sequential(init_default(nn.Conv2d(cin, cin, 3, padding=pad, dilation=dil,
+                                                               bias=False), nn.init.kaiming_normal_),
+                                        BatchNorm(cin, norm_type=bn))
+        self.dilconv3x3_2 = nn.Sequential(init_default(nn.Conv2d(cin, cin, 3, padding=pad, dilation=dil,
+                                                               bias=False), nn.init.kaiming_normal_),
                                         BatchNorm(cin, norm_type=bn))
         self.conv_p = nn.Sequential(init_default(nn.Conv2d(cin, cin, 1, bias=False), nn.init.kaiming_normal_),
                                     BatchNorm(cin, norm_type=bn), nn.ReLU(True))
-        self.conv_cat = nn.Sequential(init_default(nn.Conv2d(cin*3, n_classes, 1, bias=False),
+        self.conv_cat = nn.Sequential(init_default(nn.Conv2d(cin*5, n_classes, 1, bias=False),
                                                    nn.init.kaiming_normal_),
                                       BatchNorm(n_classes, norm_type=bn))
 
     def forward(self, x):
         conv1x1 = self.conv1x1(x)
-        conv3x3 = self.dilconv3x3(x)
+        conv3x3_0 = self.dilconv3x3_0(x)
+        conv3x3_1 = self.dilconv3x3_1(x)
+        conv3x3_2 = self.dilconv3x3_2(x)
 
         # image pool and upsample
         image_pool = nn.AvgPool2d(kernel_size=x.size()[2:])
@@ -126,7 +134,7 @@ class ASPP(nn.Module):
         image_pool = self.conv_p(image_pool(x))
         upsample = upsample(image_pool)
         # concat
-        concat = torch.cat([conv1x1, conv3x3, upsample], dim=1)
+        concat = torch.cat([conv1x1, conv3x3_0, conv3x3_1, conv3x3_2, upsample], dim=1)
         return self.conv_cat(concat)
 
 

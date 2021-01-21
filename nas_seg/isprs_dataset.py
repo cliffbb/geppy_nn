@@ -53,7 +53,7 @@ def extract_patches(img, stride=64, size=(128, 128)):
     return patches
 
 
-def transforms_(patch, flip_v=True, flip_h=True, rotation=None):
+def transforms_(patch, flip_v=False, flip_h=False, rotation=None):
     """data augmentation"""
     patches = [patch]
     if rotation == None:

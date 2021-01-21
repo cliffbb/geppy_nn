@@ -87,6 +87,10 @@ def gep_EA(pop, toolbox, gen_days, n_elites=1, stats=None, hof=None, history=Non
         for ind, fit in zip(invalid_indvs, fitnesses):
             ind.fitness.values = fit
 
+        # populate the history
+        if history is not None:
+            history.update(pop)
+
         # record statistics and log
         if hof is not None:
             hof.update(pop)
@@ -95,14 +99,9 @@ def gep_EA(pop, toolbox, gen_days, n_elites=1, stats=None, hof=None, history=Non
         if verbose:
             print(logbook.stream)
 
-        # log individual history
-        if history is not None:
-            pass
-
         # selection with elitism
         elites = deap.tools.selBest(pop, k=n_elites)
         offspring = toolbox.select(pop, len(pop) - n_elites)
-
         # replication
         offspring = [toolbox.clone(ind) for ind in offspring]
 
@@ -118,11 +117,10 @@ def gep_EA(pop, toolbox, gen_days, n_elites=1, stats=None, hof=None, history=Non
 
         # replace the current population with the offsprings
         pop = elites + offspring
-
         n_gen += 1
         hours = divmod((time.time() - start), 3600)[0]
 
-    return pop, logbook
+    return pop, logbook, history
 
 
 __all__ = ['gep_EA']

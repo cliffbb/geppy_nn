@@ -22,9 +22,9 @@ class Layer(nn.Module):
             elif get_op_head(op) == 'sepconv5x5':
                 self.add_module(op, sepconv2d(cin, ksize=5, double_stack=False))
             elif get_op_head(op) == 'dilconv3x3':
-                self.add_module(op, dilconv2d(cin, ksize=3, padding=2, dilation=2, seperate=False))
+                self.add_module(op, dilconv2d(cin, ksize=3, padding=2, dilation=2, seperate=True))
             elif get_op_head(op) == 'dilconv5x5':
-                self.add_module(op, dilconv2d(cin, ksize=5, padding=4, dilation=2, seperate=False))
+                self.add_module(op, dilconv2d(cin, ksize=5, padding=4, dilation=2, seperate=True))
             elif get_op_head(op) == 'maxpool3x3':
                 self.add_module(op, pooling(pool_type='max'))
             elif get_op_head(op) == 'avgpool3x3':
@@ -38,14 +38,14 @@ class Layer(nn.Module):
 
 class Cell(nn.Module):
     "Class that is uesd to build a cell"
-    def __init__(self, cin, comp_graph):
+    def __init__(self, cin, comp_graph, ksize=3, stride=2):
         super(Cell, self).__init__()
         self.n_branch = len(comp_graph)
         # self.relu = nn.ReLU(True)
         for i in range(self.n_branch):
             setattr(self, 'branch_%d' % i, Layer(cin, comp_graph[i]))
         # self.convproj = conv2d(cin*self.n_branch, cin, ksize=1)
-        self.convproj = conv2d(cin*self.n_branch, cin*2, ksize=3, stride=2)
+        self.convproj = conv2d(cin*self.n_branch, cin*2, ksize=ksize, stride=stride)
 
     def forward(self, x):
         cell = [None] * self.n_branch
@@ -54,6 +54,53 @@ class Cell(nn.Module):
         cell = self.convproj(torch.cat(cell, dim=1))
         return cell # self.relu(cell + x)
 
+
+# class ASPPLayer(nn.Module):
+#     """Class that is used to build a layer"""
+#     def __init__(self, cin, comp_graph):
+#         super(Layer, self).__init__()
+#         self.inputs = comp_graph[0]
+#         self.conv_ops = comp_graph[1]
+#         self.graph_expr = comp_graph[2]
+#
+#         for op in self.conv_ops:
+#             if get_op_head(op) == 'sepconv3x3':
+#                 self.add_module(op, sepconv2d(cin, ksize=3, double_stack=False))
+#             elif get_op_head(op) == 'sepconv5x5':
+#                 self.add_module(op, sepconv2d(cin, ksize=5, double_stack=False))
+#             elif get_op_head(op) == 'dilconv3x3':
+#                 self.add_module(op, dilconv2d(cin, ksize=3, padding=2, dilation=2, seperate=True))
+#             elif get_op_head(op) == 'dilconv5x5':
+#                 self.add_module(op, dilconv2d(cin, ksize=5, padding=4, dilation=2, seperate=True))
+#             elif get_op_head(op) == 'maxpool3x3':
+#                 self.add_module(op, pooling(pool_type='max'))
+#             elif get_op_head(op) == 'avgpool3x3':
+#                 self.add_module(op, pooling(pool_type='avg'))
+#             else:
+#                 raise NotImplementedError('Unimplemented convolution operation: ', op)
+#
+#     def forward(self, x):
+#         return eval(str(self.graph_expr))
+#
+#
+# class ASPPCell(nn.Module):
+#     "Class that is uesd to build a cell"
+#     def __init__(self, cin, comp_graph):
+#         super(Cell, self).__init__()
+#         self.n_branch = len(comp_graph)
+#         # self.relu = nn.ReLU(True)
+#         for i in range(self.n_branch):
+#             setattr(self, 'branch_%d' % i, Layer(cin, comp_graph[i]))
+#         # self.convproj = conv2d(cin*self.n_branch, cin, ksize=1)
+#         self.convproj = conv2d(cin*self.n_branch, cin*2, ksize=3, stride=2)
+#
+#     def forward(self, x):
+#         cell = [None] * self.n_branch
+#         for i in range(self.n_branch):
+#             cell[i] = getattr(self, 'branch_%d' % i)(x)
+#         cell = self.convproj(torch.cat(cell, dim=1))
+#         return cell # self.relu(cell + x)
+#
 
 class Network(nn.Module):
     """Class that is used to build the entire architecture"""
@@ -77,16 +124,22 @@ class Network(nn.Module):
 
     def encoder(self):
         cell_blks = []
-        # cin = self.channels * 2
         n_blk = 4
-        pad_dil = 24
-        for i in range(n_blk):
+        pad_dil = [(6, 3), (6, 6), (1, 4), (1, 1)]
+        for i in range(n_blk-2):
             cin = self.channels * 2
             cell_blks.append(('cell_{}'.format(i), Cell(cin, self.comp_graphs)))
-            cell_blks.append(('aspp_{}'.format(i), ASPP(cin*2, padding=pad_dil, dilation=pad_dil,
+            cell_blks.append(('aspp_{}'.format(i), ASPP(cin*2, pad=pad_dil[i], dil=pad_dil[i],
                                                         n_classes=self.classes)))
-            pad_dil //= 2
             self.channels = cin
+
+        for i in range(n_blk-2, n_blk):
+            cin = self.channels * 2
+            cell_blks.append(('cell_{}'.format(i), Cell(cin, self.comp_graphs, stride=1)))
+            cell_blks.append(('aspp_{}'.format(i), ASPP(cin*2, pad=pad_dil[i], dil=pad_dil[i],
+                                                        n_classes=self.classes)))
+            self.channels = cin
+
         return nn.Sequential(OrderedDict(cell_blks))
 
     # def decoder(self):
